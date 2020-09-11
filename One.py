@@ -157,8 +157,17 @@ def draw_window(win, bird, pipes, base, score):
     base.draw(win)
     pygame.display.update()
 
-def mains():
-    bird = Bird(230,350)
+def mains(genomes, config):
+    nets = []
+    ge = []
+    birds = []
+
+    for g in genomes:
+        net = neat.nn.FeedForwardNetwork(g, config)
+        nets.append(net)
+        birds.append(Bird(230,350))
+        g.fitness = 0
+        ge.append(g)
     pipes = [Pipe(700)]
     base = Base(730)
     score = 0
@@ -170,41 +179,54 @@ def mains():
         for event in pygame.event.get():
             if event.type == 12:
                 run = False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                bird.jump()
-        bird.move()
+            # if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            #     bird.jump()
+       # bird.move()
         #pipe.move()
         rem = []
         add_pipe = False
 
         for pipe in pipes:
-            if pipe.collide(bird):
-                pass
+            for x, bird in enumerate(birds):
+                if pipe.collide(bird):
+                    ge[x].fitness -= 1
+                    birds.pop(x)
+                    nets.pop(x)
+                    ge.pop(x)
+
+                if not pipe.passed and pipe.x < bird.x:
+                    pipe.passed = True
+                    add_pipe = True
+            pipe.move()
             if pipe.x + pipe.PIPE_TOP.get_width() < 0:
                 rem.append(pipe)
-
-            if not pipe.passed and pipe.x < bird.x:
-                pipe.passed = True
-                add_pipe = True
-            pipe.move()
         if add_pipe:
-            score += 1
+            #score += 1
+            for g in ge:
+                g.fitness += 5
             pipes.append(Pipe(600))
 
         for r in rem:
             pipes.remove(r)
 
-        if bird.y + bird.img.get_height() <=730:
-            pass
+        for x, bird in enumerate(birds):
+            if bird.y + bird.img.get_height() <=730:
+                ge[x].fitness -= 1
+                birds.pop(x)
+                nets.pop(x)
+                ge.pop(x)
         base.move()
         draw_window(win,bird,pipes,base, score)
     pygame.quit()
     quit()
 
+def run():
+    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, "NEAT_config.txt")
 
-
+    p = neat.Population(config)
+    p.add_reporter(neat.StdOutReporter(True))
+    stats = neat.StatisticsReporter
+    p.add_reporter(stats)
 if __name__ == '__main__':
-    if input() == 'y':
-        mains()
-    else:
-        quit()
+
+    mains()
